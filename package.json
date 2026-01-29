@@ -1,0 +1,81 @@
+{
+  "name": "vscode-openin-qtcreator",
+  "displayName": "Open in Qt Creator",
+  "description": "Open the current VS Code workspace or file in Qt Creator.",
+  "version": "1.0.0",
+  "publisher": "tfourj",
+  "license": "ISC",
+  "author": "TfourJ",
+  "icon": "icon.png",
+  "type": "commonjs",
+  "engines": {
+    "vscode": "^1.108.2"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "qt",
+    "qtcreator",
+    "cpp",
+    "c++",
+    "cmake"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tfourj/vscode-openin-qtcreator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tfourj/vscode-openin-qtcreator/issues"
+  },
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:openInQtCreator.openWorkspace"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "openInQtCreator.openWorkspace",
+        "title": "Open Workspace in Qt Creator"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "openInQtCreator.openWorkspace",
+          "when": "workspaceFolderCount > 0"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Open in Qt Creator",
+      "properties": {
+        "openInQtCreator.qtCreatorPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to qtcreator executable. If empty, uses qtcreator from PATH."
+        },
+        "openInQtCreator.openWithFile": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true and an active file is open, pass that file to Qt Creator instead of the folder."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^25.1.0",
+    "@types/vscode": "^1.108.1",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "undici-types": "^7.19.2"
+  },
+  "homepage": "https://github.com/tfourj/vscode-openin-qtcreator#readme"
+}

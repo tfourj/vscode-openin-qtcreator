@@ -2,7 +2,7 @@
   "name": "vscode-openin-qtcreator",
   "displayName": "Open in Qt Creator",
   "description": "Open the current VS Code workspace or file in Qt Creator.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "tfourj",
   "license": "ISC",
   "author": "TfourJ",
@@ -59,7 +59,16 @@
         "openInQtCreator.openWithFile": {
           "type": "boolean",
           "default": false,
-          "description": "If true and an active file is open, pass that file to Qt Creator instead of the folder."
+          "description": "If true and an active file is open, pass that file to Qt Creator instead of a folder. This takes precedence over targetMode."
+        },
+        "openInQtCreator.targetMode": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "projectRoot"
+          ],
+          "default": "workspace",
+          "description": "Choose what folder to open in Qt Creator: current workspace root, or auto-detected project root based on CMakeLists.txt/.pro files."
         }
       }
     }

@@ -3,15 +3,6 @@ import * as cp from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 
-function fileExists(p: string): boolean {
-  try {
-    fs.accessSync(p, fs.constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function getQtCreatorCommand(): string {
   const cfg = vscode.workspace.getConfiguration("openInQtCreator");
   let configured = (cfg.get<string>("qtCreatorPath") || "").trim();
@@ -28,9 +19,63 @@ function getQtCreatorCommand(): string {
   return process.platform === "win32" ? "qtcreator.exe" : "qtcreator";
 }
 
-function getTargetPath(): string | null {
+function isPathInside(childPath: string, parentPath: string): boolean {
+  const rel = path.relative(parentPath, childPath);
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
+function hasProjectMarker(dirPath: string): boolean {
+  if (fs.existsSync(path.join(dirPath, "CMakeLists.txt"))) return true;
+
+  try {
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    return entries.some((entry) => entry.isFile() && entry.name.endsWith(".pro"));
+  } catch {
+    return false;
+  }
+}
+
+function findProjectRootFrom(startDir: string, workspaceRoot: string): string | null {
+  let current = startDir;
+  const root = path.resolve(workspaceRoot);
+
+  while (true) {
+    if (hasProjectMarker(current)) return current;
+    if (path.resolve(current) === root) return null;
+
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+async function findProjectRootInWorkspace(workspaceRoot: string): Promise<string | null> {
+  const files = await vscode.workspace.findFiles(
+    "**/{CMakeLists.txt,*.pro}",
+    "**/{.git,node_modules,out}/**",
+    50
+  );
+
+  const candidates = files
+    .map((file) => path.dirname(file.fsPath))
+    .filter((dir) => isPathInside(dir, workspaceRoot));
+
+  if (!candidates.length) return null;
+
+  candidates.sort((a, b) => {
+    const depthA = a.split(path.sep).length;
+    const depthB = b.split(path.sep).length;
+    if (depthA !== depthB) return depthA - depthB;
+    return a.localeCompare(b);
+  });
+
+  return candidates[0];
+}
+
+async function getTargetPath(): Promise<string | null> {
   const cfg = vscode.workspace.getConfiguration("openInQtCreator");
   const openWithFile = cfg.get<boolean>("openWithFile");
+  const targetMode = cfg.get<string>("targetMode") || "workspace";
 
   if (openWithFile && vscode.window.activeTextEditor) {
     return vscode.window.activeTextEditor.document.uri.fsPath;
@@ -39,16 +84,25 @@ function getTargetPath(): string | null {
   const folders = vscode.workspace.workspaceFolders;
   if (!folders?.length) return null;
 
-  return folders[0].uri.fsPath;
+  const workspaceRoot = folders[0].uri.fsPath;
+  if (targetMode !== "projectRoot") return workspaceRoot;
+
+  const activeUri = vscode.window.activeTextEditor?.document.uri;
+  if (activeUri?.scheme === "file" && isPathInside(activeUri.fsPath, workspaceRoot)) {
+    const projectRoot = findProjectRootFrom(path.dirname(activeUri.fsPath), workspaceRoot);
+    if (projectRoot) return projectRoot;
+  }
+
+  return (await findProjectRootInWorkspace(workspaceRoot)) || workspaceRoot;
 }
 
 export function activate(context: vscode.ExtensionContext) {
   const commandId = "openInQtCreator.openWorkspace";
 
   // Command
-  const cmd = vscode.commands.registerCommand(commandId, () => {
+  const cmd = vscode.commands.registerCommand(commandId, async () => {
     const qt = getQtCreatorCommand();
-    const target = getTargetPath();
+    const target = await getTargetPath();
 
     if (!target) {
       vscode.window.showErrorMessage("No workspace folder is open.");
